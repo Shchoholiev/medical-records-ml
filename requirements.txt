@@ -4,3 +4,7 @@
 
 azure-functions
 azure-cosmos
+joblib
+pandas
+scikit-learn
+numpy
