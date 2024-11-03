@@ -2,9 +2,11 @@ import logging
 import azure.functions as func
 import joblib
 import pandas as pd
+from utils.blockchain import is_blockchain_valid
 from utils.cosmos_db import get_patient_data, get_medical_records_by_patient_id
 from utils.data_processing import assemble_data_for_stroke_prediction
 from utils.helpers import check_required_records_for_stroke
+from utils.notifications import notify_patient_and_doctor
 
 # Initialize Function App
 app = func.FunctionApp()
@@ -41,6 +43,9 @@ def new_medical_record_trigger(azcosmosdb: func.DocumentList):
         logging.info(f"All required records for stroke prediction are present for patient_id: {patient_id}")
 
         medical_data = assemble_data_for_stroke_prediction(patient, medical_records)
+        if not is_blockchain_valid():
+            logging.warning("Blockchain is invalid. Prediction will not be made.")
+            return
 
         logging.info(f"Assembled data for stroke prediction")
 
@@ -51,3 +56,10 @@ def new_medical_record_trigger(azcosmosdb: func.DocumentList):
         
         result = stroke_model.predict(preprocessed_data)
         logging.info(f"Stroke prediction for patient_id {patient_id}: {result[0]}")
+
+        if result[0]:
+            logging.info("Patient is in the risk of stroke")
+            notify_patient_and_doctor(patient, "Stroke")
+        else:
+            logging.info("Patient doesn't have the risk of stroke")
+            
